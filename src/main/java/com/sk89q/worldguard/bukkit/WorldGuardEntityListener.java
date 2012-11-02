@@ -21,10 +21,7 @@ package com.sk89q.worldguard.bukkit;
 import static com.sk89q.worldguard.bukkit.BukkitUtil.toVector;
 
 import java.util.Set;
-import com.sk89q.worldedit.blocks.BlockID;
-import com.sk89q.worldedit.blocks.ItemID;
-import com.sk89q.worldguard.LocalPlayer;
-import com.sk89q.worldguard.protection.GlobalRegionManager;
+
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -33,6 +30,7 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Creature;
 import org.bukkit.entity.Creeper;
 import org.bukkit.entity.EnderDragon;
+import org.bukkit.entity.EnderPearl;
 import org.bukkit.entity.Enderman;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -55,6 +53,7 @@ import org.bukkit.event.entity.EntityCombustEvent;
 import org.bukkit.event.entity.EntityDamageByBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityInteractEvent;
@@ -63,16 +62,20 @@ import org.bukkit.event.entity.ExplosionPrimeEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PigZapEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.entity.PotionSplashEvent;
 import org.bukkit.event.painting.PaintingBreakByEntityEvent;
 import org.bukkit.event.painting.PaintingBreakEvent;
 import org.bukkit.event.painting.PaintingPlaceEvent;
 import org.bukkit.inventory.ItemStack;
+
 import com.sk89q.worldedit.Vector;
+import com.sk89q.worldedit.blocks.BlockID;
+import com.sk89q.worldedit.blocks.ItemID;
+import com.sk89q.worldguard.LocalPlayer;
 import com.sk89q.worldguard.blacklist.events.BlockBreakBlacklistEvent;
 import com.sk89q.worldguard.blacklist.events.ItemUseBlacklistEvent;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
+import com.sk89q.worldguard.protection.GlobalRegionManager;
 import com.sk89q.worldguard.protection.events.DisallowedPVPEvent;
 import com.sk89q.worldguard.protection.flags.DefaultFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
@@ -181,6 +184,8 @@ public class WorldGuardEntityListener implements Listener {
     }
 
     private void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+
+        if (event.getDamage() < 1) return;
         if (event.getDamager() instanceof Projectile) {
             onEntityDamageByProjectile(event);
             return;
@@ -339,24 +344,13 @@ public class WorldGuardEntityListener implements Listener {
             ConfigurationManager cfg = plugin.getGlobalStateManager();
             WorldConfiguration wcfg = cfg.get(player.getWorld());
 
+            // Check Invincible
             if (isInvincible(player)) {
                 event.setCancelled(true);
                 return;
             }
 
-            if (attacker != null && attacker instanceof Player) {
-                if (wcfg.useRegions) {
-                    Vector pt = toVector(defender.getLocation());
-                    Vector pt2 = toVector(attacker.getLocation());
-                    RegionManager mgr = plugin.getGlobalRegionManager().get(player.getWorld());
-
-                    if (!mgr.getApplicableRegions(pt).allows(DefaultFlag.PVP, localPlayer)
-                            || !mgr.getApplicableRegions(pt2).allows(DefaultFlag.PVP, plugin.wrapPlayer((Player) attacker))) {
-                        tryCancelPVPEvent((Player) attacker, player, event);
-                        return;
-                    }
-                }
-            }
+            // Check Mob
             if (attacker != null && attacker instanceof Skeleton) {
                 if (wcfg.disableMobDamage) {
                     event.setCancelled(true);
@@ -369,6 +363,21 @@ public class WorldGuardEntityListener implements Listener {
                     if (!mgr.getApplicableRegions(pt).allows(DefaultFlag.MOB_DAMAGE, localPlayer)) {
                         event.setCancelled(true);
                         return;
+                    }
+                }
+            }
+
+            // Check Player
+            if (event.getDamager() instanceof EnderPearl) return;
+            if (attacker != null && attacker instanceof Player) {
+                if (wcfg.useRegions) {
+                    Vector pt = toVector(defender.getLocation());
+                    Vector pt2 = toVector(attacker.getLocation());
+                    RegionManager mgr = plugin.getGlobalRegionManager().get(player.getWorld());
+
+                    if (!mgr.getApplicableRegions(pt).allows(DefaultFlag.PVP, localPlayer)
+                            || !mgr.getApplicableRegions(pt2).allows(DefaultFlag.PVP, plugin.wrapPlayer((Player) attacker))) {
+                        tryCancelPVPEvent((Player) attacker, player, event);
                     }
                 }
             }
