@@ -31,7 +31,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
-
 import java.util.List;
 
 public class BukkitUtil {
@@ -141,6 +140,27 @@ public class BukkitUtil {
         Block block = world.getBlockAt(ox, oy, oz);
         int id = block.getTypeId();
         return id == 8 || id == 9;
+    }
+
+    /**
+     * Checks if the given potion is a vial of water.
+     *
+     * @param item the item to check
+     * @return true if it's a water vial
+     */
+    public static boolean isWaterPotion(ItemStack item) {
+        return (item.getDurability() & 0x3F) == 0;
+    }
+
+    /**
+     * Get just the potion effect bits. This is to work around bugs with potion
+     * parsing.
+     *
+     * @param item item
+     * @return new bits
+     */
+    public static int getPotionEffectBits(ItemStack item) {
+        return item.getDurability() & 0x3F;
     }
 
     /**
